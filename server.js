@@ -1,5 +1,7 @@
 const express=require('express');
 
+const Mongoose=require('mongoose');
+
 const expressGraphQL=require('express-graphql').graphqlHTTP;
 
 const{
@@ -12,15 +14,27 @@ const{
     GraphQLNonNull
 }=require('graphql');
 
+Mongoose.connect('mongodb://localhost:27017/Multiply1DB');
+
 const app=express();
 
-const authors = [
-	{ id: 1, name: 'J. K. Rowling' },
-	{ id: 2, name: 'J. R. R. Tolkien' },
-	{ id: 3, name: 'Brent Weeks' }
-]
 
-const books = [
+const authorschema={
+    id:Number,
+    name:String
+};
+
+const booksschema={
+    id:Number,
+    name:String,
+    authorId:Number
+};
+
+const authors=Mongoose.model('authors',authorschema);
+
+const books=Mongoose.model('books',booksschema);
+
+books.insertMany([
 	{ id: 1, name: 'Harry Potter and the Chamber of Secrets', authorId: 1 },
 	{ id: 2, name: 'Harry Potter and the Prisoner of Azkaban', authorId: 1 },
 	{ id: 3, name: 'Harry Potter and the Goblet of Fire', authorId: 1 },
@@ -29,7 +43,14 @@ const books = [
 	{ id: 6, name: 'The Return of the King', authorId: 2 },
 	{ id: 7, name: 'The Way of Shadows', authorId: 3 },
 	{ id: 8, name: 'Beyond the Shadows', authorId: 3 }
-]
+]);
+
+authors.insertMany([
+    { id: 1, name: 'J. K. Rowling' },
+    	{ id: 2, name: 'J. R. R. Tolkien' },
+    	{ id: 3, name: 'Brent Weeks' }
+
+]);
 
 const BookType = new GraphQLObjectType({
     name: 'Book',   
@@ -41,7 +62,7 @@ const BookType = new GraphQLObjectType({
         author: {
             type: AuthorType,
             resolve(book) {
-                return authors.find(author => author.id === book.authorId)  
+                return authors.findById(book.authorId);
             }
         }
     })
@@ -55,7 +76,7 @@ const AuthorType = new GraphQLObjectType({
         name: { type: new GraphQLNonNull(GraphQLString) },
         books:{type: new GraphQLList(BookType),
             resolve(author){
-                return books.filter(book=>book.authorId===author.id)
+                return books.find({id:author.id})
             }
         }
     })
@@ -73,17 +94,23 @@ const RootQueryType = new GraphQLObjectType({
             args: {
                 id: { type: GraphQLInt }
             },
-            resolve: (parent,args) => books.find(book => book.id === args.id)
+            resolve (parent,args) {   
+               return books.findById(args.id);
+            }
         }, 
         books: {
             type: new GraphQLList(BookType),
             description: 'List of books',
-            resolve: () => books    
+            resolve() {
+                return  books.find({});
+            }    
         },
         authors:{
             type: new GraphQLList(AuthorType),
             description: 'List of authors',
-            resolve: () => authors
+            resolve() {
+                return authors.find({});
+            }
         },
         author:{
             type: AuthorType,
@@ -91,7 +118,9 @@ const RootQueryType = new GraphQLObjectType({
             args: {
                 id: { type: GraphQLInt }
             },
-            resolve: (parent,args) => authors.find(author => author.id === args.id)
+            resolve (parent,args) {
+                return authors.findById(args.id);
+            }
         }
     })
 })
@@ -109,13 +138,12 @@ const RootMutationType = new GraphQLObjectType({
                 authorId: { type: new GraphQLNonNull(GraphQLString) }
             },
             resolve: (parent,args) => {
-                const book={
-                    id: books.length + 1,
+                let book=new books({
+                    id: books.count() + 1,
                     name: args.name,
                     authorId: args.authorId
-                }
-                books.push(book)
-                return book
+                });
+                return book.save();
             }
         },
         addAuthor: {
@@ -125,12 +153,11 @@ const RootMutationType = new GraphQLObjectType({
                 name: { type: new GraphQLNonNull(GraphQLString) }
             },
             resolve: (parent,args) => {
-                const author={
-                    id: authors.length + 1,
+                let author=new authors({
+                    id: authors.count() + 1,
                     name: args.name
-                }
-                authors.push(author)
-                return author
+                });
+                return author.save();
             }
         }
     })
