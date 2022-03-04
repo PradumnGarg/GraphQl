@@ -30,39 +30,44 @@ const booksschema={
     authorId:Number
 };
 
+
+
 const authors=Mongoose.model('authors',authorschema);
 
 const books=Mongoose.model('books',booksschema);
 
-books.insertMany([
-	{ id: 1, name: 'Harry Potter and the Chamber of Secrets', authorId: 1 },
-	{ id: 2, name: 'Harry Potter and the Prisoner of Azkaban', authorId: 1 },
-	{ id: 3, name: 'Harry Potter and the Goblet of Fire', authorId: 1 },
-	{ id: 4, name: 'The Fellowship of the Ring', authorId: 2 },
-	{ id: 5, name: 'The Two Towers', authorId: 2 },
-	{ id: 6, name: 'The Return of the King', authorId: 2 },
-	{ id: 7, name: 'The Way of Shadows', authorId: 3 },
-	{ id: 8, name: 'Beyond the Shadows', authorId: 3 }
-]);
 
-authors.insertMany([
-    { id: 1, name: 'J. K. Rowling' },
-    	{ id: 2, name: 'J. R. R. Tolkien' },
-    	{ id: 3, name: 'Brent Weeks' }
 
-]);
+
+// books.insertMany([
+// 	{ id: 1, name: 'Harry Potter and the Chamber of Secrets', authorId: 1 },
+// 	{ id: 2, name: 'Harry Potter and the Prisoner of Azkaban', authorId: 1 },
+// 	{ id: 3, name: 'Harry Potter and the Goblet of Fire', authorId: 1 },
+// 	{ id: 4, name: 'The Fellowship of the Ring', authorId: 2 },
+// 	{ id: 5, name: 'The Two Towers', authorId: 2 },
+// 	{ id: 6, name: 'The Return of the King', authorId: 2 },
+// 	{ id: 7, name: 'The Way of Shadows', authorId: 3 },
+// 	{ id: 8, name: 'Beyond the Shadows', authorId: 3 }
+// ]);
+
+// authors.insertMany([
+//     { id: 1, name: 'J. K. Rowling' },
+//     	{ id: 2, name: 'J. R. R. Tolkien' },
+//     	{ id: 3, name: 'Brent Weeks' }
+
+// ]);
 
 const BookType = new GraphQLObjectType({
     name: 'Book',   
     description: 'This represents a book written by an author',
     fields: () => ({
-        id: { type: new  GraphQLNonNull(GraphQLString )},
+        id: { type: new  GraphQLNonNull(GraphQLInt )},
         name: { type: new GraphQLNonNull(GraphQLString) },
-        authorId: { type: new GraphQLNonNull(GraphQLString) },
+        authorId: { type: new GraphQLNonNull(GraphQLInt) },
         author: {
             type: AuthorType,
-            resolve(book) {
-                return authors.findById(book.authorId);
+            resolve(parent, args) {
+                return authors.findOne({id:parent.authorId});
             }
         }
     })
@@ -72,11 +77,11 @@ const AuthorType = new GraphQLObjectType({
     name: 'Author',   
     description: 'This represents an author of the book',
     fields: () => ({
-        id: { type: new  GraphQLNonNull(GraphQLString )},
-        name: { type: new GraphQLNonNull(GraphQLString) },
+        id: { type: new  GraphQLNonNull(GraphQLInt)},
+        name: { type: new GraphQLNonNull(GraphQLString )},
         books:{type: new GraphQLList(BookType),
-            resolve(author){
-                return books.find({id:author.id})
+            resolve(parent){
+                return books.find({authorId:parent.id})
             }
         }
     })
@@ -95,7 +100,7 @@ const RootQueryType = new GraphQLObjectType({
                 id: { type: GraphQLInt }
             },
             resolve (parent,args) {   
-               return books.findById(args.id);
+               return books.findOne({id:args.id});
             }
         }, 
         books: {
@@ -119,53 +124,55 @@ const RootQueryType = new GraphQLObjectType({
                 id: { type: GraphQLInt }
             },
             resolve (parent,args) {
-                return authors.findById(args.id);
+                return authors.findOne({id:args.id});
             }
         }
     })
 })
 
 
-const RootMutationType = new GraphQLObjectType({
-    name: 'Mutation',
-    description: 'Root Mutation',
-    fields: () => ({
-        addBook: {  
-            type: BookType,
-            description: 'Add a new book',
-            args: {
-                name: { type: new GraphQLNonNull(GraphQLString) },
-                authorId: { type: new GraphQLNonNull(GraphQLString) }
-            },
-            resolve: (parent,args) => {
-                let book=new books({
-                    id: books.count() + 1,
-                    name: args.name,
-                    authorId: args.authorId
-                });
-                return book.save();
-            }
-        },
-        addAuthor: {
-            type: AuthorType,
-            description: 'Add a new author',
-            args: {
-                name: { type: new GraphQLNonNull(GraphQLString) }
-            },
-            resolve: (parent,args) => {
-                let author=new authors({
-                    id: authors.count() + 1,
-                    name: args.name
-                });
-                return author.save();
-            }
-        }
-    })
-})
+//Mutation code
+
+// const RootMutationType = new GraphQLObjectType({
+//     name: 'Mutation',
+//     description: 'Root Mutation',
+//     fields: () => ({
+//         addBook: {  
+//             type: BookType,
+//             description: 'Add a new book',
+//             args: {
+//                 name: { type: new GraphQLNonNull(GraphQLString) },
+//                 authorId: { type: new GraphQLNonNull(GraphQLString) }
+//             },
+//             resolve: (parent,args) => {
+//                 let book=new books({
+//                     id: books.count() + 1,
+//                     name: args.name,
+//                     authorId: args.authorId
+//                 });
+//                 return book.save();
+//             }
+//         },
+//         addAuthor: {
+//             type: AuthorType,
+//             description: 'Add a new author',
+//             args: {
+//                 name: { type: new GraphQLNonNull(GraphQLString) }
+//             },
+//             resolve: (parent,args) => {
+//                 let author=new authors({
+//                     id: authors.count() + 1,
+//                     name: args.name
+//                 });
+//                 return author.save();
+//             }
+//         }
+//     })
+// })
 
 const schema=new GraphQLSchema({
     query: RootQueryType,
-    mutation: RootMutationType
+    // mutation: RootMutationType
 });
 
 
